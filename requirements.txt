@@ -1,0 +1,4 @@
+# tkinterは標準ライブラリのため不要
+# PyInstallerはexe化時のみ必要
+
+pyinstaller>=6.0.0
