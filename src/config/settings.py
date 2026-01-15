@@ -1,7 +1,18 @@
 """設定管理モジュール"""
 import json
 import os
+import sys
 from pathlib import Path
+
+
+def get_app_dir() -> Path:
+    """アプリケーションディレクトリを取得（exeと同じフォルダ）"""
+    if getattr(sys, 'frozen', False):
+        # PyInstallerでexe化された場合
+        return Path(sys.executable).parent
+    else:
+        # 通常のPython実行
+        return Path(__file__).parent.parent.parent
 
 
 class Settings:
@@ -40,8 +51,10 @@ class Settings:
     }
 
     def __init__(self):
-        self.config_dir = Path.home() / "Documents" / "TaskTimestamp"
+        # exeファイルと同じフォルダにconfig.jsonを作成
+        self.config_dir = get_app_dir()
         self.config_file = self.config_dir / "config.json"
+        # 出力フォルダのデフォルトもexeと同じフォルダ
         self.output_folder = self.config_dir
         self.subtasks = self.DEFAULT_SUBTASKS.copy()
         self.font_size = self.DEFAULT_FONT_SIZE
@@ -59,7 +72,8 @@ class Settings:
                     self.output_folder = Path(data.get(
                         'output_folder', str(self.config_dir)))
                     self.subtasks = data.get('subtasks', self.DEFAULT_SUBTASKS)
-                    self.font_size = data.get('font_size', self.DEFAULT_FONT_SIZE)
+                    self.font_size = data.get(
+                        'font_size', self.DEFAULT_FONT_SIZE)
                     self.window_x = data.get('window_x')
                     self.window_y = data.get('window_y')
             except (json.JSONDecodeError, IOError):
@@ -67,7 +81,6 @@ class Settings:
 
     def _create_default_config_if_not_exists(self):
         """デフォルト設定ファイルを作成"""
-        self.config_dir.mkdir(parents=True, exist_ok=True)
         if not self.config_file.exists():
             self.save()
 
@@ -77,7 +90,6 @@ class Settings:
 
     def save(self):
         """設定をファイルに保存する"""
-        self.config_dir.mkdir(parents=True, exist_ok=True)
         data = {
             'output_folder': str(self.output_folder),
             'subtasks': self.subtasks,
