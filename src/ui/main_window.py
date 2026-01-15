@@ -57,11 +57,8 @@ class MainWindow(tk.Frame):
         )
         title.pack(side=tk.LEFT, padx=5)
 
-        # タスクリストコンテナ
-        self.task_container = tk.Frame(self, bg=colors["bg_primary"])
-        self.task_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        self._refresh_task_list()
+        # スクロール可能なタスクリストコンテナ
+        self._create_scrollable_task_list(colors)
 
         # フッター（追加ボタン）
         footer = tk.Frame(self, bg=colors["bg_primary"], pady=5)
@@ -80,6 +77,69 @@ class MainWindow(tk.Frame):
             command=self._add_task
         )
         add_btn.pack(pady=3)
+
+    def _create_scrollable_task_list(self, colors):
+        """スクロール可能なタスクリストを作成"""
+        # スクロール用のCanvasとScrollbar
+        container = tk.Frame(self, bg=colors["bg_primary"])
+        container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.canvas = tk.Canvas(
+            container,
+            bg=colors["bg_primary"],
+            highlightthickness=0
+        )
+
+        scrollbar = tk.Scrollbar(
+            container,
+            orient="vertical",
+            command=self.canvas.yview
+        )
+
+        self.task_container = tk.Frame(
+            self.canvas,
+            bg=colors["bg_primary"]
+        )
+
+        # Canvasにフレームを配置
+        self.canvas_window = self.canvas.create_window(
+            (0, 0),
+            window=self.task_container,
+            anchor="nw"
+        )
+
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+
+        # レイアウト
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # フレームサイズ変更時にスクロール範囲を更新
+        self.task_container.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+
+        # Canvas幅をフレームに合わせる
+        self.canvas.bind(
+            "<Configure>",
+            lambda e: self.canvas.itemconfig(
+                self.canvas_window,
+                width=e.width
+            )
+        )
+
+        # マウスホイールでスクロール
+        self.canvas.bind_all(
+            "<MouseWheel>",
+            lambda e: self.canvas.yview_scroll(
+                int(-1 * (e.delta / 120)), "units"
+            )
+        )
+
+        self._refresh_task_list()
 
     def _refresh_task_list(self):
         """タスクリストを更新する"""
@@ -157,3 +217,11 @@ class MainWindow(tk.Frame):
     def refresh(self):
         """画面をリフレッシュする"""
         self._refresh_task_list()
+
+    def destroy(self):
+        """破棄時にマウスホイールバインドを解除"""
+        try:
+            self.canvas.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
+        super().destroy()

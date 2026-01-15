@@ -191,33 +191,64 @@ class SettingsWindow(tk.Frame):
             messagebox.showerror("エラー", f"読み込み失敗:\n{e}")
 
     def _read_tasks_from_file(self, filepath: str) -> list:
-        """ファイルからタスク一覧を読み込む"""
+        """ファイルからタスク一覧を読み込む（1行目はヘッダとしてスキップ）"""
         import csv
 
         tasks = []
         if filepath.endswith('.csv'):
             with open(filepath, 'r', encoding='utf-8-sig') as f:
                 reader = csv.reader(f)
+                next(reader, None)  # ヘッダ行をスキップ
                 for row in reader:
-                    if row:
-                        tasks.append(row[0])
-        else:
-            # Excel読み込み（openpyxlがない場合はCSV形式を推奨）
+                    if row and row[0] and row[0].strip():
+                        tasks.append(row[0].strip())
+        elif filepath.endswith('.xlsx'):
+            # .xlsx形式（openpyxlを使用）
             try:
                 import openpyxl
                 wb = openpyxl.load_workbook(filepath, read_only=True)
                 ws = wb.active
+                first_row = True
                 for row in ws.iter_rows(values_only=True):
+                    if first_row:
+                        first_row = False
+                        continue  # ヘッダ行をスキップ
                     if row and row[0]:
-                        tasks.append(str(row[0]))
+                        tasks.append(str(row[0]).strip())
                 wb.close()
             except ImportError:
                 messagebox.showwarning(
                     "注意",
-                    "Excelファイルを読むにはopenpyxlが必要です。\n"
-                    "CSVファイルをご利用ください。"
+                    "Excelファイル(.xlsx)を読むにはopenpyxlが必要です。\n"
+                    "CSVファイルに変換してご利用ください。\n\n"
+                    "Excelで「名前を付けて保存」→\n"
+                    "ファイル形式「CSV UTF-8」を選択"
                 )
                 return []
+        elif filepath.endswith('.xls'):
+            # .xls形式（xlrdを使用）
+            try:
+                import xlrd
+                wb = xlrd.open_workbook(filepath)
+                ws = wb.sheet_by_index(0)
+                for i in range(1, ws.nrows):  # 1行目スキップ
+                    val = ws.cell_value(i, 0)
+                    if val:
+                        tasks.append(str(val).strip())
+            except ImportError:
+                messagebox.showwarning(
+                    "注意",
+                    "Excelファイル(.xls)を読むにはxlrdが必要です。\n"
+                    "CSVファイルに変換してご利用ください。"
+                )
+                return []
+        else:
+            messagebox.showwarning(
+                "注意",
+                "対応形式: .xlsx, .xls, .csv\n"
+                "CSVファイルをご利用ください。"
+            )
+            return []
         return tasks
 
     def _save_settings(self):
